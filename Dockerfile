@@ -1,27 +1,38 @@
-# Use Ubuntu 20.04 as base
-FROM ubuntu:20.04
+# Dockerfile
+#
+# Minimal environment to run QEMU.
+# Uses host /dev/kvm if passed in at runtime, otherwise falls back to TCG.
 
-# Avoid interactive prompts
+FROM ubuntu:22.04
+
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install KVM and necessary packages
+# Install QEMU and basic tools
 RUN apt-get update && \
-    apt-get install -y \
-        qemu-kvm \
-        libvirt-daemon-system \
-        libvirt-clients \
-        bridge-utils \
-        virtinst \
-        systemd \
-        sudo && \
+    apt-get install -y --no-install-recommends \
+        qemu-system-x86 \
+        wget \
+        xz-utils \
+        sudo \
+        ca-certificates \
+        iproute2 \
+        net-tools \
+        vim \
+        less && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/*
 
-# Set root password (optional)
-RUN echo 'root:root' | chpasswd
+# Create non-root user
+RUN useradd -m -s /bin/bash dev && \
+    echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev && \
+    chmod 0440 /etc/sudoers.d/dev
 
-# Expose libvirt port (optional, for remote management)
-EXPOSE 16509
+USER dev
+WORKDIR /home/dev
 
-# Start a shell by default
-CMD ["/bin/bash"]
+# Copy helper script
+COPY run-qemu.sh /home/dev/run-qemu.sh
+RUN chmod +x /home/dev/run-qemu.sh
+
+# Default command: print help
+CMD ["/home/dev/run-qemu.sh", "--help"]
